@@ -4,3 +4,6 @@ buildCommand = "npm install && npm run build"
 
 [deploy]
 startCommand = "npx serve dist -s -l tcp://0.0.0.0:$PORT"
+
+[build.nixpacks]
+nixPackages = ["nodejs_22"]
