@@ -4,7 +4,7 @@
   // Config
   var SCRIPT_TAG = document.currentScript;
   var API_KEY = SCRIPT_TAG?.getAttribute('data-api-key') || '';
-  var API_URL = SCRIPT_TAG?.getAttribute('data-api-url') || 'http://localhost:3001';
+  var API_URL = SCRIPT_TAG?.getAttribute('data-api-url') || 'https://webflowwidget-production.up.railway.app/';
 
   if (!API_KEY) {
     console.warn('[Feedback Widget] Missing data-api-key attribute');
