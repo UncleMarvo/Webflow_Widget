@@ -1,0 +1,173 @@
+import { Router, Response } from 'express';
+import { query } from '../config/database';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { validateApiKey, ApiKeyRequest } from '../middleware/apiKeyAuth';
+import { sendFeedbackNotification } from '../services/email';
+
+const router = Router();
+
+// POST /feedback - Public endpoint (authenticated via API key)
+router.post('/', validateApiKey, async (req: ApiKeyRequest, res: Response): Promise<void> => {
+  const { url, pageTitle, x, y, annotation, screenshotUrl, deviceType, viewportWidth, viewportHeight } = req.body;
+
+  if (!url || !annotation) {
+    res.status(400).json({ error: 'URL and annotation are required' });
+    return;
+  }
+
+  try {
+    const result = await query(
+      `INSERT INTO feedback (project_id, url, page_title, x, y, annotation, screenshot_url, device_type, viewport_width, viewport_height)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [req.projectId, url, pageTitle || null, x || null, y || null, annotation, screenshotUrl || null, deviceType || null, viewportWidth || null, viewportHeight || null]
+    );
+
+    const feedback = result.rows[0];
+
+    // Send email notification (non-blocking)
+    sendFeedbackNotification(req.projectId!, feedback).catch(err =>
+      console.error('Failed to send feedback notification:', err)
+    );
+
+    res.status(201).json(feedback);
+  } catch (err) {
+    console.error('Create feedback error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /projects/:projectId/feedback - Authenticated, list feedback
+router.get('/projects/:projectId/feedback', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { projectId } = req.params;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+  const offset = (page - 1) * limit;
+  const status = req.query.status as string;
+
+  try {
+    // Verify ownership
+    const project = await query('SELECT id FROM projects WHERE id = $1 AND user_id = $2', [projectId, req.userId]);
+    if (project.rows.length === 0) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    let whereClause = 'WHERE f.project_id = $1';
+    const params: unknown[] = [projectId];
+
+    if (status && ['todo', 'in-progress', 'done'].includes(status)) {
+      whereClause += ` AND f.status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total FROM feedback f ${whereClause}`,
+      params
+    );
+
+    const feedbackResult = await query(
+      `SELECT f.* FROM feedback f ${whereClause} ORDER BY f.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+
+    res.json({
+      feedback: feedbackResult.rows,
+      pagination: {
+        page,
+        limit,
+        total: countResult.rows[0].total,
+        totalPages: Math.ceil(countResult.rows[0].total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('List feedback error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /feedback/:id - Update feedback status/priority
+router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { status, priority } = req.body;
+
+  const validStatuses = ['todo', 'in-progress', 'done'];
+  const validPriorities = ['low', 'normal', 'high', 'urgent'];
+
+  if (status && !validStatuses.includes(status)) {
+    res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
+    return;
+  }
+
+  if (priority && !validPriorities.includes(priority)) {
+    res.status(400).json({ error: `Priority must be one of: ${validPriorities.join(', ')}` });
+    return;
+  }
+
+  try {
+    // Verify ownership via project
+    const ownership = await query(
+      `SELECT f.id FROM feedback f
+       JOIN projects p ON p.id = f.project_id
+       WHERE f.id = $1 AND p.user_id = $2`,
+      [req.params.id, req.userId]
+    );
+
+    if (ownership.rows.length === 0) {
+      res.status(404).json({ error: 'Feedback not found' });
+      return;
+    }
+
+    const setClauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (status) {
+      params.push(status);
+      setClauses.push(`status = $${params.length}`);
+    }
+    if (priority) {
+      params.push(priority);
+      setClauses.push(`priority = $${params.length}`);
+    }
+
+    if (setClauses.length === 0) {
+      res.status(400).json({ error: 'Nothing to update' });
+      return;
+    }
+
+    params.push(req.params.id);
+    const result = await query(
+      `UPDATE feedback SET ${setClauses.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update feedback error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /feedback/:id - Delete feedback
+router.delete('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const result = await query(
+      `DELETE FROM feedback f
+       USING projects p
+       WHERE f.project_id = p.id AND f.id = $1 AND p.user_id = $2
+       RETURNING f.id`,
+      [req.params.id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Feedback not found' });
+      return;
+    }
+
+    res.json({ message: 'Feedback deleted' });
+  } catch (err) {
+    console.error('Delete feedback error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+export default router;
