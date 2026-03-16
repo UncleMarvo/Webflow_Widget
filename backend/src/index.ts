@@ -12,6 +12,9 @@ import path from 'path';
 
 const app = express();
 
+// Serve static files
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
