@@ -1,13 +1,16 @@
 (function() {
   'use strict';
-
-  // Config
-  var SCRIPT_TAG = document.currentScript;
+  
+  // Config - with fallback if document.currentScript doesn't work
+  var SCRIPT_TAG = document.currentScript || 
+                   document.querySelector('script[src*="embed.js"]') ||
+                   document.querySelector('script[data-api-key]');
+  
   var API_KEY = SCRIPT_TAG?.getAttribute('data-api-key') || '';
   var API_URL = SCRIPT_TAG?.getAttribute('data-api-url') || 'https://webflowwidget-production.up.railway.app/';
-
+  
   if (!API_KEY) {
-    console.warn('[Feedback Widget] Missing data-api-key attribute');
+    console.error('[Feedback Widget] Missing data-api-key attribute. SCRIPT_TAG:', SCRIPT_TAG);
     return;
   }
 
