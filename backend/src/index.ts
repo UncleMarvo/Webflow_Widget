@@ -13,7 +13,11 @@ import path from 'path';
 const app = express();
 
 // Serve static files
-app.use(express.static(path.join(__dirname, '../public')));
+const publicPath = path.join(__dirname, '../public');
+console.log('__dirname:', __dirname);
+console.log('publicPath:', publicPath);
+console.log('public/embed.js exists:', fs.existsSync(path.join(publicPath, 'embed.js')));
+app.use(express.static(publicPath));
 
 // Middleware
 app.use(helmet({
