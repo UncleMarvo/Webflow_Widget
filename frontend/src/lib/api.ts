@@ -62,6 +62,13 @@ export const projectsApi = {
   exportCsv: (id: string) => api.post(`/projects/${id}/export/csv`, {}, { responseType: 'blob' }),
 };
 
+// Subscription
+export const subscriptionApi = {
+  getTier: () => api.get('/subscription/tier'),
+  getUsage: () => api.get('/subscription/usage'),
+  getTiers: () => api.get('/subscription/tiers'),
+};
+
 // Feedback
 export const feedbackApi = {
   list: (projectId: string, params?: { page?: number; status?: string }) =>

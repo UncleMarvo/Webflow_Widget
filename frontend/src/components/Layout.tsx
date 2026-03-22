@@ -22,6 +22,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link to="/projects" className="text-sm text-gray-600 hover:text-gray-900">
                 Projects
               </Link>
+              <Link to="/settings" className="text-sm text-gray-600 hover:text-gray-900">
+                Settings
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-500">{user?.email}</span>

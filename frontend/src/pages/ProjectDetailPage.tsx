@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { projectsApi, feedbackApi } from '../lib/api';
 import { Layout } from '../components/Layout';
 import { FeedbackModal } from '../components/FeedbackModal';
+import { UpgradeModal } from '../components/UpgradeModal';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 interface Project {
   id: string;
@@ -56,6 +58,8 @@ export function ProjectDetailPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [editName, setEditName] = useState('');
   const [showEmbed, setShowEmbed] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
+  const { hasFeature } = useSubscription();
 
   const loadFeedback = useCallback(async () => {
     if (!id) return;
@@ -159,6 +163,22 @@ export function ProjectDetailPage() {
           <button onClick={() => setShowEmbed(!showEmbed)} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Embed Code</button>
           <button onClick={handleExportCsv} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Export CSV</button>
           <button onClick={() => setShowSettings(!showSettings)} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Settings</button>
+          {!hasFeature('rounds') && (
+            <button
+              onClick={() => setUpgradeFeature('rounds')}
+              className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100"
+            >
+              Rounds
+            </button>
+          )}
+          {!hasFeature('api_access') && (
+            <button
+              onClick={() => setUpgradeFeature('api_access')}
+              className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100"
+            >
+              API Access
+            </button>
+          )}
         </div>
       </div>
 
@@ -303,6 +323,11 @@ export function ProjectDetailPage() {
           statusColors={statusColors}
           priorityColors={priorityColors}
         />
+      )}
+
+      {/* Upgrade Modal */}
+      {upgradeFeature && (
+        <UpgradeModal feature={upgradeFeature} onClose={() => setUpgradeFeature(null)} />
       )}
     </Layout>
   );

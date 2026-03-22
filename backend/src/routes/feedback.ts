@@ -1,8 +1,9 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validateApiKey, ApiKeyRequest } from '../middleware/apiKeyAuth';
 import { sendFeedbackNotification } from '../services/email';
+import { getTierConfig } from '../config/tiers';
 
 const router = Router();
 
@@ -27,6 +28,16 @@ router.post('/', validateApiKey, async (req: ApiKeyRequest, res: Response): Prom
     );
 
     const feedback = result.rows[0];
+
+    // Track monthly usage (non-blocking)
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    query(
+      `INSERT INTO usage_tracking (user_id, month, feedback_count)
+       SELECT p.user_id, $2, 1 FROM projects p WHERE p.id = $1
+       ON CONFLICT (user_id, month)
+       DO UPDATE SET feedback_count = usage_tracking.feedback_count + 1, updated_at = NOW()`,
+      [req.projectId, currentMonth]
+    ).catch(err => console.error('Usage tracking error:', err));
 
     // Send email notification (non-blocking)
     sendFeedbackNotification(req.projectId!, feedback).catch(err =>
@@ -169,6 +180,40 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response): Pro
     res.json({ message: 'Feedback deleted' });
   } catch (err) {
     console.error('Delete feedback error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /feedback/tier?apiKey=... — Public: returns tier features for widget gating
+router.get('/tier', async (req: Request, res: Response): Promise<void> => {
+  const apiKey = req.query.apiKey as string;
+  if (!apiKey) {
+    res.status(400).json({ error: 'Missing apiKey parameter' });
+    return;
+  }
+
+  try {
+    const result = await query(
+      `SELECT u.subscription_tier FROM users u
+       JOIN projects p ON p.user_id = u.id
+       WHERE p.api_key = $1`,
+      [apiKey]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    const tier = result.rows[0].subscription_tier || 'pro';
+    const config = getTierConfig(tier);
+
+    res.json({
+      tier: config.name,
+      features: config.features,
+    });
+  } catch (err) {
+    console.error('Get widget tier error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

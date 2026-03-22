@@ -7,6 +7,7 @@ import authRoutes from './routes/auth';
 import projectRoutes from './routes/projects';
 import feedbackRoutes from './routes/feedback';
 import exportRoutes from './routes/export';
+import subscriptionRoutes from './routes/subscription';
 import fs from 'fs';
 import path from 'path';
 
@@ -27,7 +28,7 @@ app.use(helmet({
 // CORS: Allow any origin for the public embed endpoint (Webflow sites can use custom domains)
 app.use('/feedback', cors({
   origin: true,
-  methods: ['POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'X-API-Key'],
 }));
@@ -43,6 +44,7 @@ app.use('/auth', authRoutes);
 app.use('/projects', projectRoutes);
 app.use('/feedback', feedbackRoutes);
 app.use('/projects', exportRoutes);
+app.use('/subscription', subscriptionRoutes);
 
 // Feedback list is under /projects/:projectId/feedback (defined in feedback routes)
 app.use('/', feedbackRoutes);

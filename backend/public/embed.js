@@ -20,6 +20,7 @@
   var pinX = null;
   var pinY = null;
   var html2canvasLoaded = false;
+  var tierFeatures = null; // loaded from API, used to gate widget features
 
   // Touch detection
   var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -41,6 +42,27 @@
 
   // Preload html2canvas in background
   loadHtml2Canvas();
+
+  // Fetch tier info for feature gating
+  function loadTierInfo() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_URL + '/feedback/tier?apiKey=' + encodeURIComponent(API_KEY));
+    xhr.onload = function() {
+      try {
+        if (xhr.status === 200) {
+          tierFeatures = JSON.parse(xhr.responseText);
+        }
+      } catch(e) { /* tier info not critical */ }
+    };
+    xhr.send();
+  }
+  loadTierInfo();
+
+  // Check if a feature is available in the current tier
+  function hasTierFeature(feature) {
+    if (!tierFeatures || !tierFeatures.features) return false;
+    return tierFeatures.features.indexOf(feature) !== -1;
+  }
 
   // Styles
   var STYLES = '\
