@@ -1,14 +1,14 @@
 (function() {
   'use strict';
-  
+
   // Config - with fallback if document.currentScript doesn't work
-  var SCRIPT_TAG = document.currentScript || 
+  var SCRIPT_TAG = document.currentScript ||
                    document.querySelector('script[src*="embed.js"]') ||
                    document.querySelector('script[data-api-key]');
-  
+
   var API_KEY = SCRIPT_TAG?.getAttribute('data-api-key') || '';
   var API_URL = (SCRIPT_TAG?.getAttribute('data-api-url') || 'https://webflowwidget-production.up.railway.app').replace(/\/+$/, '');
-  
+
   if (!API_KEY) {
     console.error('[Feedback Widget] Missing data-api-key attribute. SCRIPT_TAG:', SCRIPT_TAG);
     return;
@@ -20,6 +20,9 @@
   var pinX = null;
   var pinY = null;
   var html2canvasLoaded = false;
+
+  // Touch detection
+  var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
   // Load html2canvas dynamically
   function loadHtml2Canvas() {
@@ -60,10 +63,20 @@
       transition: transform 0.2s, box-shadow 0.2s;\
       font-size: 20px;\
       line-height: 1;\
+      touch-action: manipulation;\
+      -webkit-tap-highlight-color: transparent;\
+      user-select: none;\
+      -webkit-user-select: none;\
     }\
-    .wf-feedback-btn:hover {\
-      transform: scale(1.05);\
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);\
+    .wf-feedback-btn:active {\
+      transform: scale(0.95);\
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);\
+    }\
+    @media (hover: hover) and (pointer: fine) {\
+      .wf-feedback-btn:hover {\
+        transform: scale(1.05);\
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);\
+      }\
     }\
     .wf-feedback-overlay {\
       position: fixed;\
@@ -71,6 +84,7 @@
       z-index: 2147483641;\
       cursor: crosshair;\
       background: transparent;\
+      touch-action: none;\
     }\
     .wf-feedback-pin {\
       position: fixed;\
@@ -94,7 +108,13 @@
       max-width: calc(100vw - 32px);\
       max-height: calc(100vh - 32px);\
       overflow-y: auto;\
+      -webkit-overflow-scrolling: touch;\
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out;\
+      will-change: transform;\
+    }\
+    .wf-feedback-modal[aria-hidden="true"] {\
+      display: none;\
     }\
     .wf-feedback-modal-header {\
       padding: 16px 20px;\
@@ -109,16 +129,35 @@
       font-weight: 600;\
       color: #111;\
     }\
+    .wf-feedback-swipe-handle {\
+      display: none;\
+      width: 36px;\
+      height: 4px;\
+      background: #d1d5db;\
+      border-radius: 2px;\
+      margin: 8px auto 0;\
+    }\
     .wf-feedback-close {\
       background: none;\
       border: none;\
       font-size: 20px;\
       cursor: pointer;\
       color: #9ca3af;\
-      padding: 0;\
+      padding: 4px;\
+      min-width: 48px;\
+      min-height: 48px;\
+      display: flex;\
+      align-items: center;\
+      justify-content: center;\
       line-height: 1;\
+      touch-action: manipulation;\
+      -webkit-tap-highlight-color: transparent;\
+      border-radius: 8px;\
     }\
-    .wf-feedback-close:hover { color: #374151; }\
+    .wf-feedback-close:active { background: #f3f4f6; }\
+    @media (hover: hover) and (pointer: fine) {\
+      .wf-feedback-close:hover { color: #374151; background: #f3f4f6; }\
+    }\
     .wf-feedback-modal-body { padding: 20px; }\
     .wf-feedback-screenshot {\
       width: 100%;\
@@ -135,14 +174,17 @@
     .wf-feedback-textarea {\
       width: 100%;\
       min-height: 80px;\
-      padding: 10px 12px;\
+      padding: 12px 14px;\
       border: 1px solid #d1d5db;\
       border-radius: 8px;\
-      font-size: 14px;\
+      font-size: 16px;\
       font-family: inherit;\
       resize: vertical;\
       outline: none;\
       box-sizing: border-box;\
+      -webkit-appearance: none;\
+      -moz-appearance: none;\
+      appearance: none;\
     }\
     .wf-feedback-textarea:focus {\
       border-color: #000;\
@@ -150,18 +192,25 @@
     }\
     .wf-feedback-submit {\
       width: 100%;\
-      padding: 10px;\
+      padding: 14px;\
       margin-top: 12px;\
       background: #000;\
       color: #fff;\
       border: none;\
       border-radius: 8px;\
-      font-size: 14px;\
+      font-size: 16px;\
       font-weight: 500;\
       cursor: pointer;\
       font-family: inherit;\
+      min-height: 48px;\
+      touch-action: manipulation;\
+      -webkit-tap-highlight-color: transparent;\
+      -webkit-appearance: none;\
     }\
-    .wf-feedback-submit:hover { background: #1f2937; }\
+    .wf-feedback-submit:active { background: #374151; }\
+    @media (hover: hover) and (pointer: fine) {\
+      .wf-feedback-submit:hover { background: #1f2937; }\
+    }\
     .wf-feedback-submit:disabled { opacity: 0.5; cursor: not-allowed; }\
     .wf-feedback-success {\
       text-align: center;\
@@ -177,13 +226,24 @@
       z-index: 2147483642;\
       background: #000;\
       color: #fff;\
-      padding: 8px 16px;\
+      padding: 10px 20px;\
       border-radius: 8px;\
       font-size: 14px;\
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);\
+      text-align: center;\
+      max-width: calc(100vw - 40px);\
     }\
-    @media (max-width: 640px) {\
+    .wf-feedback-backdrop {\
+      display: none;\
+      position: fixed;\
+      inset: 0;\
+      z-index: 2147483642;\
+      background: rgba(0,0,0,0.3);\
+    }\
+    \
+    /* Mobile: < 480px */\
+    @media (max-width: 479px) {\
       .wf-feedback-modal {\
         bottom: 0 !important;\
         left: 0 !important;\
@@ -191,7 +251,61 @@
         top: auto !important;\
         width: 100%;\
         max-width: 100%;\
-        border-radius: 12px 12px 0 0;\
+        max-height: 85vh;\
+        border-radius: 16px 16px 0 0;\
+      }\
+      .wf-feedback-swipe-handle { display: block; }\
+      .wf-feedback-backdrop { display: block; }\
+      .wf-feedback-modal-body { padding: 16px; }\
+      .wf-feedback-textarea { min-height: 60px; }\
+    }\
+    \
+    /* Small mobile / large phone: 480-640px */\
+    @media (min-width: 480px) and (max-width: 640px) {\
+      .wf-feedback-modal {\
+        bottom: 0 !important;\
+        left: 0 !important;\
+        right: 0 !important;\
+        top: auto !important;\
+        width: 100%;\
+        max-width: 100%;\
+        max-height: 80vh;\
+        border-radius: 16px 16px 0 0;\
+      }\
+      .wf-feedback-swipe-handle { display: block; }\
+      .wf-feedback-backdrop { display: block; }\
+    }\
+    \
+    /* Tablet: 641-1024px */\
+    @media (min-width: 641px) and (max-width: 1024px) {\
+      .wf-feedback-modal {\
+        width: 400px;\
+        max-height: calc(100vh - 48px);\
+      }\
+    }\
+    \
+    /* Desktop: > 1024px (default styles apply) */\
+    \
+    /* Landscape on small screens */\
+    @media (max-width: 640px) and (orientation: landscape) {\
+      .wf-feedback-modal {\
+        max-height: 95vh;\
+      }\
+      .wf-feedback-textarea { min-height: 50px; }\
+      .wf-feedback-modal-body { padding: 12px 16px; }\
+      .wf-feedback-modal-header { padding: 10px 16px; }\
+    }\
+    \
+    /* Safe area insets for notched devices */\
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {\
+      .wf-feedback-btn {\
+        bottom: calc(20px + env(safe-area-inset-bottom));\
+        right: calc(20px + env(safe-area-inset-right));\
+      }\
+      @media (max-width: 640px) {\
+        .wf-feedback-modal {\
+          padding-bottom: env(safe-area-inset-bottom);\
+        }\
       }\
     }\
   ';
@@ -206,9 +320,41 @@
   btn.className = 'wf-feedback-btn';
   btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   btn.title = 'Leave feedback';
+  btn.setAttribute('aria-label', 'Open feedback widget');
   document.body.appendChild(btn);
 
-  btn.addEventListener('click', startFeedback);
+  // Use both click and touch events for the trigger button
+  addTapHandler(btn, startFeedback);
+
+  // Utility: add tap handler that works on both touch and mouse
+  function addTapHandler(element, callback) {
+    var touchHandled = false;
+
+    element.addEventListener('touchend', function(e) {
+      e.preventDefault(); // Prevent ghost click
+      touchHandled = true;
+      callback(e);
+    }, { passive: false });
+
+    element.addEventListener('click', function(e) {
+      if (touchHandled) {
+        touchHandled = false;
+        return; // Already handled by touch
+      }
+      callback(e);
+    });
+  }
+
+  // Utility: get coordinates from touch or mouse event
+  function getEventCoords(e) {
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    }
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  }
 
   function startFeedback() {
     if (isActive) return;
@@ -220,21 +366,43 @@
     // Show hint
     var hint = document.createElement('div');
     hint.className = 'wf-feedback-hint';
-    hint.textContent = 'Click anywhere to leave feedback';
+    hint.textContent = isTouchDevice ? 'Tap anywhere to leave feedback' : 'Click anywhere to leave feedback';
     hint.id = 'wf-feedback-hint';
+    hint.setAttribute('role', 'status');
+    hint.setAttribute('aria-live', 'polite');
     document.body.appendChild(hint);
 
     // Create overlay
     var overlay = document.createElement('div');
     overlay.className = 'wf-feedback-overlay';
     overlay.id = 'wf-feedback-overlay';
+    overlay.setAttribute('role', 'button');
+    overlay.setAttribute('aria-label', 'Select a point on the page to leave feedback');
     document.body.appendChild(overlay);
 
     btn.style.display = 'none';
 
+    // Handle overlay placement via touch or click
+    var overlayTouchHandled = false;
+
+    overlay.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      overlayTouchHandled = true;
+      handleOverlayTap(e);
+    }, { passive: false });
+
     overlay.addEventListener('click', function(e) {
-      pinX = ((e.clientX / window.innerWidth) * 100);
-      pinY = ((e.clientY / window.innerHeight) * 100);
+      if (overlayTouchHandled) {
+        overlayTouchHandled = false;
+        return;
+      }
+      handleOverlayTap(e);
+    });
+
+    function handleOverlayTap(e) {
+      var coords = getEventCoords(e);
+      pinX = ((coords.x / window.innerWidth) * 100);
+      pinY = ((coords.y / window.innerHeight) * 100);
 
       // Remove overlay and hint
       overlay.remove();
@@ -245,14 +413,15 @@
       var pin = document.createElement('div');
       pin.className = 'wf-feedback-pin';
       pin.id = 'wf-feedback-pin';
-      pin.style.left = e.clientX + 'px';
-      pin.style.top = e.clientY + 'px';
+      pin.style.left = coords.x + 'px';
+      pin.style.top = coords.y + 'px';
+      pin.setAttribute('aria-hidden', 'true');
       document.body.appendChild(pin);
 
       captureScreenshot().then(function() {
-        showModal(e.clientX, e.clientY);
+        showModal(coords.x, coords.y);
       });
-    });
+    }
 
     // ESC to cancel
     function handleEsc(e) {
@@ -294,46 +463,170 @@
   }
 
   function showModal(clickX, clickY) {
+    var isSmallScreen = window.innerWidth <= 640;
+
+    // Create backdrop for mobile (positioned behind modal)
+    if (isSmallScreen) {
+      var backdrop = document.createElement('div');
+      backdrop.className = 'wf-feedback-backdrop';
+      backdrop.id = 'wf-feedback-backdrop';
+      backdrop.style.display = 'block';
+      backdrop.addEventListener('click', cancelFeedback);
+      document.body.appendChild(backdrop);
+    }
+
     var modal = document.createElement('div');
     modal.className = 'wf-feedback-modal';
     modal.id = 'wf-feedback-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Leave feedback');
 
-    // Position modal near click point
-    var left = clickX + 20;
-    var top = clickY - 20;
-    if (left + 380 > window.innerWidth) left = clickX - 380;
-    if (top + 400 > window.innerHeight) top = window.innerHeight - 420;
-    if (top < 16) top = 16;
-    if (left < 16) left = 16;
-
-    modal.style.left = left + 'px';
-    modal.style.top = top + 'px';
+    // Position modal near click point on desktop, bottom sheet on mobile
+    if (!isSmallScreen) {
+      var left = clickX + 20;
+      var top = clickY - 20;
+      if (left + 380 > window.innerWidth) left = clickX - 380;
+      if (top + 400 > window.innerHeight) top = window.innerHeight - 420;
+      if (top < 16) top = 16;
+      if (left < 16) left = 16;
+      modal.style.left = left + 'px';
+      modal.style.top = top + 'px';
+    }
 
     var screenshotHtml = '';
     if (screenshotDataUrl) {
-      screenshotHtml = '<div class="wf-feedback-screenshot"><img src="' + screenshotDataUrl + '" alt="Screenshot" /></div>';
+      screenshotHtml = '<div class="wf-feedback-screenshot" aria-label="Screenshot of the page">' +
+        '<img src="' + screenshotDataUrl + '" alt="Screenshot of the current page" />' +
+        '</div>';
     }
 
-    modal.innerHTML = '<div class="wf-feedback-modal-header">' +
-      '<h3>Leave Feedback</h3>' +
-      '<button class="wf-feedback-close" id="wf-feedback-close">&times;</button>' +
+    modal.innerHTML =
+      '<div class="wf-feedback-swipe-handle" aria-hidden="true"></div>' +
+      '<div class="wf-feedback-modal-header">' +
+        '<h3 id="wf-feedback-modal-title">Leave Feedback</h3>' +
+        '<button class="wf-feedback-close" id="wf-feedback-close" aria-label="Close feedback dialog">&times;</button>' +
       '</div>' +
       '<div class="wf-feedback-modal-body">' +
-      screenshotHtml +
-      '<textarea class="wf-feedback-textarea" id="wf-feedback-text" placeholder="Describe your feedback..." autofocus></textarea>' +
-      '<button class="wf-feedback-submit" id="wf-feedback-submit">Submit Feedback</button>' +
+        screenshotHtml +
+        '<label for="wf-feedback-text" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">Feedback description</label>' +
+        '<textarea class="wf-feedback-textarea" id="wf-feedback-text" placeholder="Describe your feedback..." aria-label="Describe your feedback" autofocus></textarea>' +
+        '<button class="wf-feedback-submit" id="wf-feedback-submit" aria-label="Submit feedback">Submit Feedback</button>' +
       '</div>';
+
+    modal.setAttribute('aria-labelledby', 'wf-feedback-modal-title');
 
     document.body.appendChild(modal);
 
-    document.getElementById('wf-feedback-close').addEventListener('click', cancelFeedback);
-    document.getElementById('wf-feedback-submit').addEventListener('click', submitFeedback);
+    // Add tap handlers to modal buttons
+    addTapHandler(document.getElementById('wf-feedback-close'), cancelFeedback);
+    addTapHandler(document.getElementById('wf-feedback-submit'), submitFeedback);
+
+    // Swipe-to-dismiss for mobile bottom sheet
+    if (isSmallScreen) {
+      initSwipeToDismiss(modal);
+    }
+
+    // Focus trapping and keyboard navigation
+    initFocusTrap(modal);
 
     // Focus textarea
     setTimeout(function() {
       var ta = document.getElementById('wf-feedback-text');
       if (ta) ta.focus();
     }, 100);
+  }
+
+  // Swipe-to-dismiss implementation
+  function initSwipeToDismiss(modal) {
+    var startY = 0;
+    var currentY = 0;
+    var isDragging = false;
+    var DISMISS_THRESHOLD = 100; // px minimum swipe distance
+
+    modal.addEventListener('touchstart', function(e) {
+      // Only track swipe from the header area or swipe handle
+      var target = e.target;
+      var isHandle = target.classList.contains('wf-feedback-swipe-handle');
+      var isHeader = target.closest('.wf-feedback-modal-header') || isHandle;
+      // Also allow swipe if modal is scrolled to top
+      var isScrolledToTop = modal.scrollTop <= 0;
+
+      if (isHeader || (isScrolledToTop && !target.closest('.wf-feedback-textarea'))) {
+        startY = e.touches[0].clientY;
+        isDragging = true;
+      }
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', function(e) {
+      if (!isDragging) return;
+      currentY = e.touches[0].clientY;
+      var deltaY = currentY - startY;
+
+      // Only allow downward swipe
+      if (deltaY > 0) {
+        modal.style.transform = 'translateY(' + deltaY + 'px)';
+        modal.style.opacity = Math.max(0.5, 1 - (deltaY / 300));
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    modal.addEventListener('touchend', function() {
+      if (!isDragging) return;
+      isDragging = false;
+      var deltaY = currentY - startY;
+
+      if (deltaY > DISMISS_THRESHOLD) {
+        // Animate out then dismiss
+        modal.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+        modal.style.transform = 'translateY(100%)';
+        modal.style.opacity = '0';
+        setTimeout(cancelFeedback, 200);
+      } else {
+        // Snap back
+        modal.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+        modal.style.transform = '';
+        modal.style.opacity = '';
+        setTimeout(function() {
+          modal.style.transition = '';
+        }, 200);
+      }
+      currentY = 0;
+    }, { passive: true });
+  }
+
+  // Focus trap: Tab cycles within modal, Escape closes
+  function initFocusTrap(modal) {
+    function handleKeydown(e) {
+      if (e.key === 'Escape') {
+        cancelFeedback();
+        return;
+      }
+      if (e.key === 'Tab') {
+        var focusable = modal.querySelectorAll(
+          'button:not([disabled]), textarea, input, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+
+    modal._focusTrapHandler = handleKeydown;
+    document.addEventListener('keydown', handleKeydown);
   }
 
   function submitFeedback() {
@@ -343,6 +636,7 @@
 
     if (!annotation) {
       textarea.style.borderColor = '#ef4444';
+      textarea.setAttribute('aria-invalid', 'true');
       return;
     }
 
@@ -388,8 +682,8 @@
       if (modal) {
         var body = modal.querySelector('.wf-feedback-modal-body');
         if (body) {
-          body.innerHTML = '<div class="wf-feedback-success">' +
-            '<div style="font-size:32px;margin-bottom:8px">&#10003;</div>' +
+          body.innerHTML = '<div class="wf-feedback-success" role="status" aria-live="polite">' +
+            '<div style="font-size:32px;margin-bottom:8px" aria-hidden="true">&#10003;</div>' +
             '<p>Thank you for your feedback!</p>' +
             '</div>';
         }
@@ -460,12 +754,19 @@
   }
 
   function cancelFeedback() {
+    // Clean up focus trap listener
+    var modal = document.getElementById('wf-feedback-modal');
+    if (modal && modal._focusTrapHandler) {
+      document.removeEventListener('keydown', modal._focusTrapHandler);
+    }
+
     isActive = false;
-    ['wf-feedback-overlay', 'wf-feedback-hint', 'wf-feedback-pin', 'wf-feedback-modal'].forEach(function(id) {
+    ['wf-feedback-overlay', 'wf-feedback-hint', 'wf-feedback-pin', 'wf-feedback-modal', 'wf-feedback-backdrop'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.remove();
     });
     btn.style.display = '';
+    btn.setAttribute('aria-expanded', 'false');
   }
 
   function getDeviceType() {
