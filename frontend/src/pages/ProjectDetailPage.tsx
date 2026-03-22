@@ -22,6 +22,14 @@ interface FeedbackItem {
   device_type: string | null;
   viewport_width: number | null;
   viewport_height: number | null;
+  browser_name: string | null;
+  browser_version: string | null;
+  os_name: string | null;
+  os_version: string | null;
+  user_agent: string | null;
+  device_pixel_ratio: number | null;
+  screen_width: number | null;
+  screen_height: number | null;
   status: string;
   priority: string;
   created_at: string;

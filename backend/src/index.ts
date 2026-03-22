@@ -24,9 +24,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// CORS: Dashboard uses credential-based auth, embed uses API key from any origin
+// CORS: Allow any origin for the public embed endpoint (Webflow sites can use custom domains)
 app.use('/feedback', cors({
-  origin: true, // Allow any origin for the public embed endpoint
+  origin: true,
+  methods: ['POST', 'OPTIONS'],
+  credentials: true,
   allowedHeaders: ['Content-Type', 'X-API-Key'],
 }));
 app.use(cors({

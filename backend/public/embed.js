@@ -7,7 +7,7 @@
                    document.querySelector('script[data-api-key]');
   
   var API_KEY = SCRIPT_TAG?.getAttribute('data-api-key') || '';
-  var API_URL = SCRIPT_TAG?.getAttribute('data-api-url') || 'https://webflowwidget-production.up.railway.app/';
+  var API_URL = (SCRIPT_TAG?.getAttribute('data-api-url') || 'https://webflowwidget-production.up.railway.app').replace(/\/+$/, '');
   
   if (!API_KEY) {
     console.error('[Feedback Widget] Missing data-api-key attribute. SCRIPT_TAG:', SCRIPT_TAG);
@@ -349,6 +349,7 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
+    var deviceInfo = getDeviceInfo();
     var payload = {
       url: window.location.href,
       pageTitle: document.title,
@@ -359,6 +360,14 @@
       deviceType: getDeviceType(),
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
+      browserName: deviceInfo.browserName,
+      browserVersion: deviceInfo.browserVersion,
+      osName: deviceInfo.osName,
+      osVersion: deviceInfo.osVersion,
+      userAgent: deviceInfo.userAgent,
+      devicePixelRatio: deviceInfo.devicePixelRatio,
+      screenWidth: deviceInfo.screenWidth,
+      screenHeight: deviceInfo.screenHeight,
     };
 
     fetch(API_URL + '/feedback', {
@@ -464,6 +473,65 @@
     if (/tablet|ipad|playbook|silk/i.test(ua)) return 'tablet';
     if (/mobile|iphone|ipod|android|blackberry|opera mini|iemobile/i.test(ua)) return 'mobile';
     return 'desktop';
+  }
+
+  function getDeviceInfo() {
+    var ua = navigator.userAgent;
+    var info = {
+      browserName: 'Unknown',
+      browserVersion: '',
+      osName: 'Unknown',
+      osVersion: '',
+      userAgent: ua,
+      devicePixelRatio: window.devicePixelRatio || 1,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+    };
+
+    // Detect browser name and version
+    if (/Edg\//i.test(ua)) {
+      info.browserName = 'Edge';
+      info.browserVersion = (ua.match(/Edg\/([\d.]+)/) || [])[1] || '';
+    } else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) {
+      info.browserName = 'Opera';
+      info.browserVersion = (ua.match(/(?:OPR|Opera)\/([\d.]+)/) || [])[1] || '';
+    } else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) {
+      info.browserName = 'Chrome';
+      info.browserVersion = (ua.match(/Chrome\/([\d.]+)/) || [])[1] || '';
+    } else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) {
+      info.browserName = 'Safari';
+      info.browserVersion = (ua.match(/Version\/([\d.]+)/) || [])[1] || '';
+    } else if (/Firefox\//.test(ua)) {
+      info.browserName = 'Firefox';
+      info.browserVersion = (ua.match(/Firefox\/([\d.]+)/) || [])[1] || '';
+    }
+
+    // Detect OS name and version
+    if (/Windows/.test(ua)) {
+      info.osName = 'Windows';
+      var winMatch = ua.match(/Windows NT ([\d.]+)/);
+      if (winMatch) {
+        var winVersions = { '10.0': '10/11', '6.3': '8.1', '6.2': '8', '6.1': '7' };
+        info.osVersion = winVersions[winMatch[1]] || winMatch[1];
+      }
+    } else if (/iPhone|iPad|iPod/.test(ua)) {
+      info.osName = 'iOS';
+      var iosMatch = ua.match(/OS ([\d_]+)/);
+      info.osVersion = iosMatch ? iosMatch[1].replace(/_/g, '.') : '';
+    } else if (/Mac OS X/.test(ua)) {
+      info.osName = 'macOS';
+      var macMatch = ua.match(/Mac OS X ([\d_.]+)/);
+      info.osVersion = macMatch ? macMatch[1].replace(/_/g, '.') : '';
+    } else if (/Android/.test(ua)) {
+      info.osName = 'Android';
+      info.osVersion = (ua.match(/Android ([\d.]+)/) || [])[1] || '';
+    } else if (/Linux/.test(ua)) {
+      info.osName = 'Linux';
+    } else if (/CrOS/.test(ua)) {
+      info.osName = 'ChromeOS';
+    }
+
+    return info;
   }
 
   // Sync stored feedback on load

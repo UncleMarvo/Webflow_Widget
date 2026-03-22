@@ -9,6 +9,14 @@ interface FeedbackItem {
   device_type: string | null;
   viewport_width: number | null;
   viewport_height: number | null;
+  browser_name: string | null;
+  browser_version: string | null;
+  os_name: string | null;
+  os_version: string | null;
+  user_agent: string | null;
+  device_pixel_ratio: number | null;
+  screen_width: number | null;
+  screen_height: number | null;
   status: string;
   priority: string;
   created_at: string;
@@ -73,12 +81,40 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
               <p className="text-sm text-gray-900">{feedback.device_type || 'Unknown'}</p>
             </div>
             <div>
+              <label className="block text-sm text-gray-500 mb-1">Browser</label>
+              <p className="text-sm text-gray-900">
+                {feedback.browser_name
+                  ? `${feedback.browser_name}${feedback.browser_version ? ' ' + feedback.browser_version : ''}`
+                  : 'Unknown'}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-1">OS</label>
+              <p className="text-sm text-gray-900">
+                {feedback.os_name
+                  ? `${feedback.os_name}${feedback.os_version ? ' ' + feedback.os_version : ''}`
+                  : 'Unknown'}
+              </p>
+            </div>
+            <div>
               <label className="block text-sm text-gray-500 mb-1">Viewport</label>
               <p className="text-sm text-gray-900">
                 {feedback.viewport_width && feedback.viewport_height
                   ? `${feedback.viewport_width} x ${feedback.viewport_height}`
                   : 'Unknown'}
               </p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-1">Screen Resolution</label>
+              <p className="text-sm text-gray-900">
+                {feedback.screen_width && feedback.screen_height
+                  ? `${feedback.screen_width} x ${feedback.screen_height}`
+                  : 'Unknown'}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-1">Pixel Ratio</label>
+              <p className="text-sm text-gray-900">{feedback.device_pixel_ratio || 'Unknown'}</p>
             </div>
             <div>
               <label className="block text-sm text-gray-500 mb-1">Submitted</label>
@@ -91,6 +127,20 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
               </div>
             )}
           </div>
+
+          {/* User Agent */}
+          {feedback.user_agent && (
+            <div className="mb-6">
+              <label className="block text-sm text-gray-500 mb-1">User Agent</label>
+              <p
+                className="text-xs text-gray-600 bg-gray-50 p-2 rounded-md cursor-pointer hover:bg-gray-100 break-all"
+                title="Click to copy"
+                onClick={() => navigator.clipboard.writeText(feedback.user_agent!)}
+              >
+                {feedback.user_agent}
+              </p>
+            </div>
+          )}
 
           {/* Status & Priority */}
           <div className="flex gap-4 border-t border-gray-200 pt-4">

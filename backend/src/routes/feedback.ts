@@ -8,7 +8,8 @@ const router = Router();
 
 // POST /feedback - Public endpoint (authenticated via API key)
 router.post('/', validateApiKey, async (req: ApiKeyRequest, res: Response): Promise<void> => {
-  const { url, pageTitle, x, y, annotation, screenshotUrl, deviceType, viewportWidth, viewportHeight } = req.body;
+  const { url, pageTitle, x, y, annotation, screenshotUrl, deviceType, viewportWidth, viewportHeight,
+    browserName, browserVersion, osName, osVersion, userAgent, devicePixelRatio, screenWidth, screenHeight } = req.body;
 
   if (!url || !annotation) {
     res.status(400).json({ error: 'URL and annotation are required' });
@@ -17,10 +18,12 @@ router.post('/', validateApiKey, async (req: ApiKeyRequest, res: Response): Prom
 
   try {
     const result = await query(
-      `INSERT INTO feedback (project_id, url, page_title, x, y, annotation, screenshot_url, device_type, viewport_width, viewport_height)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO feedback (project_id, url, page_title, x, y, annotation, screenshot_url, device_type, viewport_width, viewport_height,
+        browser_name, browser_version, os_name, os_version, user_agent, device_pixel_ratio, screen_width, screen_height)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
-      [req.projectId, url, pageTitle || null, x || null, y || null, annotation, screenshotUrl || null, deviceType || null, viewportWidth || null, viewportHeight || null]
+      [req.projectId, url, pageTitle || null, x || null, y || null, annotation, screenshotUrl || null, deviceType || null, viewportWidth || null, viewportHeight || null,
+        browserName || null, browserVersion || null, osName || null, osVersion || null, userAgent || null, devicePixelRatio || null, screenWidth || null, screenHeight || null]
     );
 
     const feedback = result.rows[0];

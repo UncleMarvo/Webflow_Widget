@@ -29,6 +29,14 @@ CREATE TABLE IF NOT EXISTS feedback (
   device_type VARCHAR(50),
   viewport_width INTEGER,
   viewport_height INTEGER,
+  browser_name VARCHAR(100),
+  browser_version VARCHAR(50),
+  os_name VARCHAR(100),
+  os_version VARCHAR(50),
+  user_agent TEXT,
+  device_pixel_ratio FLOAT,
+  screen_width INTEGER,
+  screen_height INTEGER,
   status VARCHAR(20) DEFAULT 'todo' CHECK (status IN ('todo', 'in-progress', 'done')),
   priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -43,6 +51,18 @@ CREATE TABLE IF NOT EXISTS project_invites (
   accepted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add device detection columns (safe to re-run: IF NOT EXISTS)
+DO $$ BEGIN
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS browser_name VARCHAR(100);
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS browser_version VARCHAR(50);
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS os_name VARCHAR(100);
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS os_version VARCHAR(50);
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS user_agent TEXT;
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS device_pixel_ratio FLOAT;
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS screen_width INTEGER;
+  ALTER TABLE feedback ADD COLUMN IF NOT EXISTS screen_height INTEGER;
+END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);

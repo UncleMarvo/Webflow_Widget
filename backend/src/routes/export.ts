@@ -15,11 +15,15 @@ router.post('/:id/export/csv', authenticate, async (req: AuthRequest, res: Respo
     }
 
     const feedbackResult = await query(
-      'SELECT url, page_title, annotation, device_type, viewport_width, viewport_height, status, priority, created_at FROM feedback WHERE project_id = $1 ORDER BY created_at DESC',
+      `SELECT url, page_title, annotation, device_type, viewport_width, viewport_height,
+        browser_name, browser_version, os_name, os_version, user_agent, device_pixel_ratio, screen_width, screen_height,
+        status, priority, created_at FROM feedback WHERE project_id = $1 ORDER BY created_at DESC`,
       [req.params.id]
     );
 
-    const headers = ['URL', 'Page Title', 'Annotation', 'Device Type', 'Viewport Width', 'Viewport Height', 'Status', 'Priority', 'Created At'];
+    const headers = ['URL', 'Page Title', 'Annotation', 'Device Type', 'Viewport Width', 'Viewport Height',
+      'Browser', 'Browser Version', 'OS', 'OS Version', 'User Agent', 'Device Pixel Ratio', 'Screen Width', 'Screen Height',
+      'Status', 'Priority', 'Created At'];
 
     const csvRows = [headers.join(',')];
 
@@ -31,6 +35,14 @@ router.post('/:id/export/csv', authenticate, async (req: AuthRequest, res: Respo
         row.device_type || '',
         row.viewport_width || '',
         row.viewport_height || '',
+        row.browser_name || '',
+        row.browser_version || '',
+        row.os_name || '',
+        row.os_version || '',
+        row.user_agent || '',
+        row.device_pixel_ratio || '',
+        row.screen_width || '',
+        row.screen_height || '',
         row.status,
         row.priority,
         row.created_at,
