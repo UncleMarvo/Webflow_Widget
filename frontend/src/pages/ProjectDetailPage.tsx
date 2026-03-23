@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { projectsApi, feedbackApi } from '../lib/api';
+import { projectsApi, feedbackApi, roundsApi } from '../lib/api';
 import { Layout } from '../components/Layout';
 import { FeedbackModal } from '../components/FeedbackModal';
 import { UpgradeModal } from '../components/UpgradeModal';
+import { RoundsPanel, type Round } from '../components/RoundsPanel';
+import { FeedbackRoundAssignment } from '../components/FeedbackRoundAssignment';
 import { useSubscription } from '../contexts/SubscriptionContext';
 
 interface Project {
@@ -35,6 +37,9 @@ interface FeedbackItem {
   status: string;
   priority: string;
   created_at: string;
+  round_id: string | null;
+  round_name: string | null;
+  round_status: string | null;
 }
 
 interface Pagination {
@@ -59,26 +64,45 @@ export function ProjectDetailPage() {
   const [editName, setEditName] = useState('');
   const [showEmbed, setShowEmbed] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [roundFilter, setRoundFilter] = useState<string | null>(null);
+  const [showRounds, setShowRounds] = useState(false);
   const { hasFeature } = useSubscription();
 
   const loadFeedback = useCallback(async () => {
     if (!id) return;
     try {
-      const { data } = await feedbackApi.list(id, { page, status: statusFilter || undefined });
+      const { data } = await feedbackApi.list(id, {
+        page,
+        status: statusFilter || undefined,
+        roundId: roundFilter || undefined,
+      });
       setFeedback(data.feedback);
       setPagination(data.pagination);
     } catch (err) {
       console.error('Failed to load feedback:', err);
     }
-  }, [id, page, statusFilter]);
+  }, [id, page, statusFilter, roundFilter]);
+
+  const loadRounds = useCallback(async () => {
+    if (!id) return;
+    try {
+      const { data } = await roundsApi.list(id);
+      setRounds(data);
+    } catch (err) {
+      console.error('Failed to load rounds:', err);
+    }
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
     Promise.all([
       projectsApi.get(id).then(r => { setProject(r.data); setEditName(r.data.name); }),
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetching: setState in async callback is intentional
       loadFeedback(),
+      loadRounds(),
     ]).finally(() => setLoading(false));
-  }, [id, loadFeedback]);
+  }, [id, loadFeedback, loadRounds]);
 
   const handleStatusChange = async (feedbackId: string, status: string) => {
     await feedbackApi.update(feedbackId, { status });
@@ -163,7 +187,14 @@ export function ProjectDetailPage() {
           <button onClick={() => setShowEmbed(!showEmbed)} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Embed Code</button>
           <button onClick={handleExportCsv} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Export CSV</button>
           <button onClick={() => setShowSettings(!showSettings)} className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">Settings</button>
-          {!hasFeature('rounds') && (
+          {hasFeature('rounds') ? (
+            <button
+              onClick={() => setShowRounds(!showRounds)}
+              className={`px-3 py-1.5 text-sm border rounded-md ${showRounds ? 'bg-black text-white border-black' : 'border-gray-300 hover:bg-gray-50'}`}
+            >
+              Rounds
+            </button>
+          ) : (
             <button
               onClick={() => setUpgradeFeature('rounds')}
               className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100"
@@ -227,6 +258,17 @@ export function ProjectDetailPage() {
         </div>
       )}
 
+      {/* Rounds Panel */}
+      {showRounds && hasFeature('rounds') && (
+        <RoundsPanel
+          projectId={id!}
+          rounds={rounds}
+          onRoundsChange={() => { loadRounds(); loadFeedback(); }}
+          onFilterByRound={(roundId) => { setRoundFilter(roundId); setPage(1); }}
+          activeRoundFilter={roundFilter}
+        />
+      )}
+
       {/* Filters */}
       <div className="flex gap-2 mb-6">
         {['', 'todo', 'in-progress', 'done'].map(s => (
@@ -259,6 +301,16 @@ export function ProjectDetailPage() {
                   <p className="text-xs text-gray-500 mt-1 truncate">{item.page_title || item.url}</p>
                 </div>
                 <div className="flex gap-2 items-center shrink-0">
+                  {hasFeature('rounds') && (
+                    <FeedbackRoundAssignment
+                      feedbackId={item.id}
+                      currentRoundId={item.round_id}
+                      currentRoundName={item.round_name}
+                      currentRoundStatus={item.round_status}
+                      rounds={rounds}
+                      onAssigned={() => { loadFeedback(); loadRounds(); }}
+                    />
+                  )}
                   {item.device_type && (
                     <span className="text-xs text-gray-400">{item.device_type}</span>
                   )}
@@ -322,6 +374,9 @@ export function ProjectDetailPage() {
           onPriorityChange={handlePriorityChange}
           statusColors={statusColors}
           priorityColors={priorityColors}
+          rounds={rounds}
+          hasRoundsFeature={hasFeature('rounds')}
+          onRoundChange={() => { loadFeedback(); loadRounds(); }}
         />
       )}
 

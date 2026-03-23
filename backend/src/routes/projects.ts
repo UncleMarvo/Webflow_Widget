@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { loadSubscription, validateProjectLimit } from '../middleware/featureGate';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function generateInviteToken(): string {
 }
 
 // POST /projects - Create a project
-router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', authenticate, loadSubscription, validateProjectLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const { name } = req.body;
 
   if (!name || name.trim().length === 0) {
@@ -28,6 +29,13 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<
       'INSERT INTO projects (user_id, name, api_key) VALUES ($1, $2, $3) RETURNING id, name, api_key, created_at',
       [req.userId, name.trim(), apiKey]
     );
+
+    // Auto-create "Round 1" for the new project
+    await query(
+      `INSERT INTO rounds (project_id, name, status) VALUES ($1, 'Round 1', 'active')`,
+      [result.rows[0].id]
+    ).catch(err => console.error('Auto-create Round 1 error:', err));
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Create project error:', err);

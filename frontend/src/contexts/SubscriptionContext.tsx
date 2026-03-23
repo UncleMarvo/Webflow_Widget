@@ -11,7 +11,7 @@ interface TierInfo {
   status: string;
   startedAt: string | null;
   endsAt: string | null;
-  features: string[];
+  features: Record<string, boolean>;
   featureAccess: Record<string, boolean>;
   limits: {
     maxProjects: number | null;

@@ -8,6 +8,10 @@ import projectRoutes from './routes/projects';
 import feedbackRoutes from './routes/feedback';
 import exportRoutes from './routes/export';
 import subscriptionRoutes from './routes/subscription';
+import billingRoutes, { stripeWebhookHandler } from './routes/billing';
+import roundsRoutes from './routes/rounds';
+import apiV1Routes from './routes/api/v1/index';
+import contactRoutes from './routes/contact';
 import fs from 'fs';
 import path from 'path';
 
@@ -20,6 +24,9 @@ console.log('publicPath:', publicPath);
 console.log('public/embed.js exists:', fs.existsSync(path.join(publicPath, 'embed.js')));
 app.use(express.static(publicPath));
 
+// Stripe webhook needs raw body for signature verification — must be before express.json()
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -31,6 +38,14 @@ app.use('/feedback', cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'X-API-Key'],
+}));
+// CORS: Allow any origin for API v1 (authenticated via API key)
+app.use('/api/v1', cors({
+  origin: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'],
 }));
 app.use(cors({
   origin: [env.frontendUrl],
@@ -45,9 +60,17 @@ app.use('/projects', projectRoutes);
 app.use('/feedback', feedbackRoutes);
 app.use('/projects', exportRoutes);
 app.use('/subscription', subscriptionRoutes);
+app.use('/billing', billingRoutes);
+app.use('/', roundsRoutes);
 
 // Feedback list is under /projects/:projectId/feedback (defined in feedback routes)
 app.use('/', feedbackRoutes);
+
+// Contact form
+app.use('/api/contact', contactRoutes);
+
+// REST API v1
+app.use('/api/v1', apiV1Routes);
 
 // Health check
 app.get('/health', (_req, res) => {

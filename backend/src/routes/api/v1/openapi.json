@@ -1,0 +1,514 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Webflow Feedback Tool API",
+    "version": "1.0.0",
+    "description": "REST API for programmatic access to feedback data, project management, and webhook configuration. Available to Premium and Agency tier subscribers.",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.yourapp.com/api/v1",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:3001/api/v1",
+      "description": "Local development"
+    }
+  ],
+  "security": [
+    {
+      "BearerApiKey": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerApiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key obtained from POST /api/v1/auth/keys. Use as: Authorization: Bearer wfapi_..."
+      },
+      "BearerJWT": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token for key management endpoints"
+      }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["INVALID_API_KEY", "INSUFFICIENT_PERMISSIONS", "RESOURCE_NOT_FOUND", "VALIDATION_ERROR", "RATE_LIMIT_EXCEEDED", "INTERNAL_ERROR"]
+              },
+              "message": { "type": "string" },
+              "details": {
+                "type": "object",
+                "nullable": true,
+                "additionalProperties": { "type": "string" }
+              }
+            },
+            "required": ["code", "message"]
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "feedback_count": { "type": "integer" }
+        }
+      },
+      "Round": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "frozen", "archived"] },
+          "description": { "type": "string", "nullable": true },
+          "feedback_count": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "starts_at": { "type": "string", "format": "date-time", "nullable": true },
+          "ends_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "DeviceInfo": {
+        "type": "object",
+        "properties": {
+          "browser": { "type": "string", "nullable": true },
+          "os": { "type": "string", "nullable": true },
+          "resolution": { "type": "string", "nullable": true },
+          "screenResolution": { "type": "string", "nullable": true },
+          "deviceType": { "type": "string", "nullable": true },
+          "userAgent": { "type": "string", "nullable": true }
+        }
+      },
+      "Feedback": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "projectId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+          "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+          "pageUrl": { "type": "string" },
+          "roundId": { "type": "string", "format": "uuid", "nullable": true },
+          "roundName": { "type": "string", "nullable": true },
+          "notes": { "type": "string", "nullable": true },
+          "deviceInfo": { "$ref": "#/components/schemas/DeviceInfo" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "url": { "type": "string", "format": "uri" },
+          "events": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["feedback.created", "feedback.updated", "feedback.deleted"] }
+          },
+          "active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "last_four_chars": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "last_used_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/keys": {
+      "post": {
+        "summary": "Generate new API key",
+        "tags": ["Authentication"],
+        "security": [{ "BearerJWT": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "Friendly name for the key", "example": "Production Key" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created. Store the key securely — it won't be shown again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiKey" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "description": "The full API key (shown only once)" },
+                        "warning": { "type": "string" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": { "description": "API access requires Premium tier or higher", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      },
+      "get": {
+        "summary": "List active API keys",
+        "tags": ["Authentication"],
+        "security": [{ "BearerJWT": [] }],
+        "responses": {
+          "200": {
+            "description": "List of active API keys (last 4 chars only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKey" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/keys/{keyId}": {
+      "delete": {
+        "summary": "Revoke API key",
+        "tags": ["Authentication"],
+        "security": [{ "BearerJWT": [] }],
+        "parameters": [
+          { "name": "keyId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Key revoked" },
+          "404": { "description": "Key not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "List all projects",
+        "tags": ["Projects"],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "projects": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } },
+                    "total": { "type": "integer" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}": {
+      "get": {
+        "summary": "Get project details",
+        "tags": ["Projects"],
+        "parameters": [
+          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } } },
+          "404": { "description": "Project not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/projects/{projectId}/rounds": {
+      "get": {
+        "summary": "List rounds in project",
+        "tags": ["Projects"],
+        "parameters": [
+          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rounds": { "type": "array", "items": { "$ref": "#/components/schemas/Round" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/feedback": {
+      "get": {
+        "summary": "List feedback for project",
+        "tags": ["Feedback"],
+        "parameters": [
+          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "roundId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["todo", "in-progress", "done"] } },
+          { "name": "priority", "in": "query", "schema": { "type": "string", "enum": ["low", "normal", "high", "urgent"] } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "feedback": { "type": "array", "items": { "$ref": "#/components/schemas/Feedback" } },
+                    "total": { "type": "integer" },
+                    "limit": { "type": "integer" },
+                    "offset": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create feedback programmatically",
+        "tags": ["Feedback"],
+        "parameters": [
+          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["pageUrl", "title"],
+                "properties": {
+                  "pageUrl": { "type": "string", "description": "URL of the page" },
+                  "title": { "type": "string", "description": "Feedback title/annotation" },
+                  "description": { "type": "string", "description": "Additional description" },
+                  "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+                  "roundId": { "type": "string", "format": "uuid" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feedback" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/feedback/{feedbackId}": {
+      "get": {
+        "summary": "Get single feedback with all metadata",
+        "tags": ["Feedback"],
+        "parameters": [
+          { "name": "feedbackId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feedback" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      },
+      "patch": {
+        "summary": "Update feedback",
+        "tags": ["Feedback"],
+        "parameters": [
+          { "name": "feedbackId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+                  "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+                  "notes": { "type": "string" },
+                  "roundId": { "type": "string", "format": "uuid", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Feedback" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      },
+      "delete": {
+        "summary": "Soft-delete feedback",
+        "tags": ["Feedback"],
+        "parameters": [
+          { "name": "feedbackId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Feedback soft-deleted" },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/webhooks": {
+      "post": {
+        "summary": "Register webhook endpoint",
+        "tags": ["Webhooks"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url", "events"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri" },
+                  "events": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["feedback.created", "feedback.updated", "feedback.deleted"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Webhook" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secret": { "type": "string", "description": "HMAC secret (shown only once)" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List registered webhooks",
+        "tags": ["Webhooks"],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "webhooks": { "type": "array", "items": { "$ref": "#/components/schemas/Webhook" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/{webhookId}": {
+      "patch": {
+        "summary": "Update webhook",
+        "tags": ["Webhooks"],
+        "parameters": [
+          { "name": "webhookId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string", "format": "uri" },
+                  "events": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["feedback.created", "feedback.updated", "feedback.deleted"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Webhook" } } } }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate webhook",
+        "tags": ["Webhooks"],
+        "parameters": [
+          { "name": "webhookId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Webhook deactivated" }
+        }
+      }
+    },
+    "/webhooks/{webhookId}/test": {
+      "post": {
+        "summary": "Send test event to webhook",
+        "tags": ["Webhooks"],
+        "parameters": [
+          { "name": "webhookId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "statusCode": { "type": "integer", "nullable": true },
+                    "error": { "type": "string", "nullable": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

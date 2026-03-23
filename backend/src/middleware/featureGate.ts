@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 import { query } from '../config/database';
-import { hasFeature, getTierConfig } from '../config/tiers';
+import { hasFeature, getTierConfig, getProjectLimit } from '../config/tiers';
 
 export interface SubscriptionRequest extends AuthRequest {
   subscriptionTier?: string;
@@ -26,7 +26,7 @@ export async function loadSubscription(
       res.status(401).json({ error: 'User not found' });
       return;
     }
-    req.subscriptionTier = result.rows[0].subscription_tier || 'pro';
+    req.subscriptionTier = result.rows[0].subscription_tier || 'starter';
     req.subscriptionStatus = result.rows[0].subscription_status || 'active';
     next();
   } catch (err) {
@@ -41,7 +41,7 @@ export async function loadSubscription(
  */
 export function requireFeature(feature: string) {
   return (req: SubscriptionRequest, res: Response, next: NextFunction): void => {
-    const tier = req.subscriptionTier || 'pro';
+    const tier = req.subscriptionTier || 'starter';
     const status = req.subscriptionStatus || 'active';
 
     if (status === 'canceled') {
@@ -67,6 +67,53 @@ export function requireFeature(feature: string) {
 
     next();
   };
+}
+
+/**
+ * Middleware that validates the user has not exceeded their tier's project limit.
+ * Must be used after authenticate() and loadSubscription().
+ * Returns 403 if the user is at or above their tier's project limit.
+ */
+export async function validateProjectLimit(
+  req: SubscriptionRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const tier = req.subscriptionTier || 'starter';
+    const limit = getProjectLimit(tier);
+
+    // null = unlimited (Agency tier)
+    if (limit === null) {
+      next();
+      return;
+    }
+
+    const result = await query(
+      'SELECT COUNT(*)::int AS count FROM projects WHERE user_id = $1',
+      [req.userId]
+    );
+    const projectCount = result.rows[0].count;
+
+    if (projectCount >= limit) {
+      const config = getTierConfig(tier);
+      const nextTier = tier === 'starter' ? 'Pro' : 'Agency';
+      res.status(403).json({
+        error: 'Project limit reached',
+        message: `You've reached the project limit for your ${config.displayName} tier. Upgrade to ${nextTier} or Agency.`,
+        code: 'PROJECT_LIMIT_REACHED',
+        currentTier: tier,
+        projectCount,
+        projectLimit: limit,
+      });
+      return;
+    }
+
+    next();
+  } catch (err) {
+    console.error('Validate project limit error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
 
 /**

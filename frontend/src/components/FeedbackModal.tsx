@@ -1,3 +1,6 @@
+import { feedbackApi } from '../lib/api';
+import type { Round } from './RoundsPanel';
+
 interface FeedbackItem {
   id: string;
   url: string;
@@ -20,6 +23,9 @@ interface FeedbackItem {
   status: string;
   priority: string;
   created_at: string;
+  round_id: string | null;
+  round_name: string | null;
+  round_status: string | null;
 }
 
 interface Props {
@@ -29,9 +35,22 @@ interface Props {
   onPriorityChange: (id: string, priority: string) => void;
   statusColors: Record<string, string>;
   priorityColors: Record<string, string>;
+  rounds?: Round[];
+  hasRoundsFeature?: boolean;
+  onRoundChange?: () => void;
 }
 
-export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityChange, statusColors, priorityColors }: Props) {
+export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityChange, statusColors, priorityColors, rounds, hasRoundsFeature, onRoundChange }: Props) {
+  const isFrozen = feedback.round_status === 'frozen';
+
+  const handleMoveToRound = async (roundId: string | null) => {
+    try {
+      await feedbackApi.moveToRound(feedback.id, roundId);
+      onRoundChange?.();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to move feedback');
+    }
+  };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -142,6 +161,33 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
             </div>
           )}
 
+          {/* Round Info */}
+          {hasRoundsFeature && (
+            <div className="border-t border-gray-200 pt-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div>
+                  <label className="block text-sm text-gray-500 mb-1">Round</label>
+                  {isFrozen ? (
+                    <span className="px-3 py-1.5 text-sm rounded-md bg-blue-100 text-blue-700">
+                      {feedback.round_name || 'Unknown'} (Frozen)
+                    </span>
+                  ) : (
+                    <select
+                      value={feedback.round_id || ''}
+                      onChange={e => handleMoveToRound(e.target.value || null)}
+                      className="px-3 py-1.5 text-sm rounded-md border-0 cursor-pointer bg-purple-50 text-purple-700"
+                    >
+                      <option value="">Unassigned</option>
+                      {rounds?.filter(r => r.status === 'active').map(round => (
+                        <option key={round.id} value={round.id}>{round.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Status & Priority */}
           <div className="flex gap-4 border-t border-gray-200 pt-4">
             <div>
@@ -149,7 +195,8 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
               <select
                 value={feedback.status}
                 onChange={e => onStatusChange(feedback.id, e.target.value)}
-                className={`px-3 py-1.5 text-sm rounded-md border-0 cursor-pointer ${statusColors[feedback.status] || ''}`}
+                disabled={isFrozen}
+                className={`px-3 py-1.5 text-sm rounded-md border-0 cursor-pointer ${statusColors[feedback.status] || ''} ${isFrozen ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="todo">todo</option>
                 <option value="in-progress">in-progress</option>
@@ -161,7 +208,8 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
               <select
                 value={feedback.priority}
                 onChange={e => onPriorityChange(feedback.id, e.target.value)}
-                className={`px-3 py-1.5 text-sm rounded-md border-0 cursor-pointer ${priorityColors[feedback.priority] || ''}`}
+                disabled={isFrozen}
+                className={`px-3 py-1.5 text-sm rounded-md border-0 cursor-pointer ${priorityColors[feedback.priority] || ''} ${isFrozen ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="low">low</option>
                 <option value="normal">normal</option>
@@ -170,6 +218,9 @@ export function FeedbackModal({ feedback, onClose, onStatusChange, onPriorityCha
               </select>
             </div>
           </div>
+          {isFrozen && (
+            <p className="text-xs text-blue-600 mt-2">This feedback is in a frozen round and cannot be modified.</p>
+          )}
         </div>
       </div>
     </div>

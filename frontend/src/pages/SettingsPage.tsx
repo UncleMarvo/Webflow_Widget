@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { Layout } from '../components/Layout';
+import { BillingPortalLink } from '../components/BillingPortalLink';
 
 const FEATURE_LABELS: Record<string, string> = {
   feedback: 'Feedback Collection',
@@ -8,11 +10,15 @@ const FEATURE_LABELS: Record<string, string> = {
   mobile_widget: 'Mobile-Optimized Widget',
   rounds: 'Feedback Rounds',
   api_access: 'API Access',
+  webhooks: 'Webhooks',
+  priority_support: 'Priority Support',
 };
 
 const GATED_FEATURES = [
-  { key: 'rounds', tier: 'Premium', description: 'Organize feedback into rounds for structured review cycles.' },
-  { key: 'api_access', tier: 'Agency', description: 'Programmatic access to feedback data via REST API.' },
+  { key: 'rounds', tier: 'Pro', description: 'Organize feedback into rounds for structured review cycles.' },
+  { key: 'api_access', tier: 'Pro', description: 'Programmatic access to feedback data via REST API.' },
+  { key: 'webhooks', tier: 'Pro', description: 'Real-time notifications when feedback is created or updated.' },
+  { key: 'priority_support', tier: 'Agency', description: 'Priority access to our support team with faster response times.' },
 ];
 
 function UsageStat({ label, count, limit }: { label: string; count: number; limit: number | null }) {
@@ -63,13 +69,24 @@ export function SettingsPage() {
               )}
             </p>
           </div>
+          <div className="flex flex-col gap-2 items-end">
+            <Link
+              to="/pricing"
+              className="px-4 py-2 text-sm font-medium bg-black text-white rounded-md hover:bg-gray-800"
+            >
+              Change Plan
+            </Link>
+            <BillingPortalLink />
+          </div>
         </div>
 
         {/* Included Features */}
         <div className="mt-6">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Included Features</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {tier.features.map((feature) => (
+            {Object.entries(tier.features)
+              .filter(([, enabled]) => enabled)
+              .map(([feature]) => (
               <div key={feature} className="flex items-center gap-2 text-sm text-gray-600">
                 <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -98,7 +115,7 @@ export function SettingsPage() {
 
       {/* Gated Features — Upgrade Prompts */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Coming Soon</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Premium Features</h2>
         <div className="space-y-4">
           {GATED_FEATURES.map(({ key, tier: requiredTier, description }) => {
             const unlocked = hasFeature(key);
@@ -120,12 +137,12 @@ export function SettingsPage() {
                     <p className="text-sm text-gray-500 mt-1">{description}</p>
                   </div>
                   {!unlocked && (
-                    <button
-                      disabled
-                      className="shrink-0 px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-400 cursor-not-allowed"
+                    <Link
+                      to="/pricing"
+                      className="shrink-0 px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
                     >
-                      Coming Soon
-                    </button>
+                      Upgrade
+                    </Link>
                   )}
                   {unlocked && (
                     <span className="shrink-0 text-sm text-green-600 font-medium">Included</span>

@@ -20,11 +20,11 @@ router.get('/tier', authenticate, async (req: AuthRequest, res: Response): Promi
     }
 
     const user = result.rows[0];
-    const tier = user.subscription_tier || 'pro';
+    const tier = user.subscription_tier || 'starter';
     const config = getTierConfig(tier);
 
     // Build feature access map for all known features
-    const allFeatures = ['feedback', 'email', 'csv_export', 'mobile_widget', 'rounds', 'api_access'];
+    const allFeatures = ['feedback', 'email', 'csv_export', 'mobile_widget', 'rounds', 'api_access', 'webhooks', 'priority_support'];
     const featureAccess: Record<string, boolean> = {};
     for (const feature of allFeatures) {
       featureAccess[feature] = hasFeature(tier, feature);
@@ -42,7 +42,7 @@ router.get('/tier', authenticate, async (req: AuthRequest, res: Response): Promi
       features: config.features,
       featureAccess,
       limits: {
-        maxProjects: config.maxProjects,
+        maxProjects: config.projects.max,
         maxUsers: config.maxUsers,
         maxFeedbackPerMonth: config.maxFeedbackPerMonth,
       },
@@ -84,13 +84,13 @@ router.get('/usage', authenticate, async (req: AuthRequest, res: Response): Prom
     ]);
 
     const tier = (await query('SELECT subscription_tier FROM users WHERE id = $1', [req.userId]))
-      .rows[0]?.subscription_tier || 'pro';
+      .rows[0]?.subscription_tier || 'starter';
     const config = getTierConfig(tier);
 
     res.json({
       projects: {
         count: projectsResult.rows[0].count,
-        limit: config.maxProjects,
+        limit: config.projects.max,
       },
       teamMembers: {
         count: membersResult.rows[0].count,
@@ -118,7 +118,7 @@ router.get('/tiers', (_req, res: Response): void => {
     currency: t.currency,
     features: t.features,
     limits: {
-      maxProjects: t.maxProjects,
+      maxProjects: t.projects.max,
       maxUsers: t.maxUsers,
       maxFeedbackPerMonth: t.maxFeedbackPerMonth,
     },

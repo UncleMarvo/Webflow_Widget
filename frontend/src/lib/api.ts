@@ -69,11 +69,34 @@ export const subscriptionApi = {
   getTiers: () => api.get('/subscription/tiers'),
 };
 
+// Billing
+export const billingApi = {
+  createCheckout: (tier: string) => api.post('/billing/checkout', { tier }),
+  getPortalUrl: () => api.post('/billing/portal'),
+};
+
 // Feedback
 export const feedbackApi = {
-  list: (projectId: string, params?: { page?: number; status?: string }) =>
+  list: (projectId: string, params?: { page?: number; status?: string; roundId?: string }) =>
     api.get(`/projects/${projectId}/feedback`, { params }),
   update: (id: string, data: { status?: string; priority?: string }) =>
     api.patch(`/feedback/${id}`, data),
   delete: (id: string) => api.delete(`/feedback/${id}`),
+  moveToRound: (feedbackId: string, roundId: string | null) =>
+    api.post(`/feedback/${feedbackId}/move-to-round`, { roundId }),
+};
+
+// Rounds
+export const roundsApi = {
+  list: (projectId: string, includeArchived?: boolean) =>
+    api.get(`/projects/${projectId}/rounds`, { params: { includeArchived } }),
+  create: (projectId: string, data: { name?: string; description?: string; startsAt?: string; endsAt?: string }) =>
+    api.post(`/projects/${projectId}/rounds`, data),
+  update: (roundId: string, data: { name?: string; description?: string; status?: string; startsAt?: string; endsAt?: string }) =>
+    api.patch(`/rounds/${roundId}`, data),
+  delete: (roundId: string) => api.delete(`/rounds/${roundId}`),
+  freeze: (roundId: string) => api.post(`/rounds/${roundId}/freeze`),
+  unfreeze: (roundId: string) => api.post(`/rounds/${roundId}/unfreeze`),
+  assignFeedback: (roundId: string, feedbackIds: string[]) =>
+    api.post(`/rounds/${roundId}/assign-feedback`, { feedbackIds }),
 };

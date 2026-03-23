@@ -7,11 +7,21 @@ const FEATURE_INFO: Record<string, { title: string; description: string; tier: s
   rounds: {
     title: 'Feedback Rounds',
     description: 'Organize feedback into structured rounds for review cycles. Group submissions by sprint, release, or design iteration.',
-    tier: 'Premium',
+    tier: 'Pro',
   },
   api_access: {
     title: 'API Access',
     description: 'Access your feedback data programmatically via REST API. Build custom integrations and automate workflows.',
+    tier: 'Pro',
+  },
+  webhooks: {
+    title: 'Webhooks',
+    description: 'Get real-time notifications when feedback is created or updated. Integrate with your existing workflow tools.',
+    tier: 'Pro',
+  },
+  priority_support: {
+    title: 'Priority Support',
+    description: 'Get priority access to our support team with faster response times and dedicated assistance.',
     tier: 'Agency',
   },
 };

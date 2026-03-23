@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { projectsApi } from '../lib/api';
 import { Layout } from '../components/Layout';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 interface Project {
   id: string;
@@ -17,6 +18,10 @@ export function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
+  const { tier, usage } = useSubscription();
+  const navigate = useNavigate();
+
+  const isAtProjectLimit = usage && usage.projects.limit !== null && usage.projects.count >= usage.projects.limit;
 
   const loadProjects = async () => {
     try {
@@ -58,6 +63,24 @@ export function ProjectsPage() {
           New Project
         </button>
       </div>
+
+      {isAtProjectLimit && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900">
+              You've reached the project limit for your {tier?.displayName} tier ({usage?.projects.count}/{usage?.projects.limit} projects).
+            </p>
+            <p className="text-sm text-blue-700 mt-0.5">Upgrade to unlock more projects.</p>
+          </div>
+          <button
+            onClick={() => navigate('/pricing')}
+            className="px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90 shrink-0"
+            style={{ backgroundColor: '#3B82F6' }}
+          >
+            Upgrade to {tier?.tier === 'starter' ? 'Pro' : 'Agency'}
+          </button>
+        </div>
+      )}
 
       {showCreate && (
         <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-lg p-6 mb-6 flex gap-3">

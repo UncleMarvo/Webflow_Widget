@@ -29,6 +29,44 @@ router.post('/', validateApiKey, async (req: ApiKeyRequest, res: Response): Prom
 
     const feedback = result.rows[0];
 
+    // Auto-assign to active round (non-blocking)
+    (async () => {
+      try {
+        // Find active round for this project
+        let activeRound = await query(
+          `SELECT id FROM rounds WHERE project_id = $1 AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
+          [req.projectId]
+        );
+
+        // If no active round, auto-create one
+        if (activeRound.rows.length === 0) {
+          const roundCount = await query(
+            'SELECT COUNT(*)::int AS count FROM rounds WHERE project_id = $1',
+            [req.projectId]
+          );
+          const roundNumber = (roundCount.rows[0].count || 0) + 1;
+          activeRound = await query(
+            `INSERT INTO rounds (project_id, name, status) VALUES ($1, $2, 'active') RETURNING id`,
+            [req.projectId, `Round ${roundNumber}`]
+          );
+        }
+
+        if (activeRound.rows.length > 0) {
+          const roundId = activeRound.rows[0].id;
+          await query(
+            `UPDATE feedback SET round_id = $1, assigned_to_round_at = NOW() WHERE id = $2`,
+            [roundId, feedback.id]
+          );
+          await query(
+            `INSERT INTO round_feedback (round_id, feedback_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [roundId, feedback.id]
+          );
+        }
+      } catch (roundErr) {
+        console.error('Round assignment error:', roundErr);
+      }
+    })();
+
     // Track monthly usage (non-blocking)
     const currentMonth = new Date().toISOString().slice(0, 7);
     query(
@@ -58,6 +96,7 @@ router.get('/projects/:projectId/feedback', authenticate, async (req: AuthReques
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
   const offset = (page - 1) * limit;
   const status = req.query.status as string;
+  const roundId = req.query.roundId as string;
 
   try {
     // Verify ownership
@@ -75,13 +114,25 @@ router.get('/projects/:projectId/feedback', authenticate, async (req: AuthReques
       params.push(status);
     }
 
+    if (roundId) {
+      if (roundId === 'unassigned') {
+        whereClause += ' AND f.round_id IS NULL';
+      } else {
+        whereClause += ` AND f.round_id = $${params.length + 1}`;
+        params.push(roundId);
+      }
+    }
+
     const countResult = await query(
       `SELECT COUNT(*)::int AS total FROM feedback f ${whereClause}`,
       params
     );
 
     const feedbackResult = await query(
-      `SELECT f.* FROM feedback f ${whereClause} ORDER BY f.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT f.*, r.name AS round_name, r.status AS round_status
+       FROM feedback f
+       LEFT JOIN rounds r ON r.id = f.round_id
+       ${whereClause} ORDER BY f.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
 
@@ -118,16 +169,23 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
   }
 
   try {
-    // Verify ownership via project
+    // Verify ownership via project and check round status
     const ownership = await query(
-      `SELECT f.id FROM feedback f
+      `SELECT f.id, f.round_id, r.status AS round_status FROM feedback f
        JOIN projects p ON p.id = f.project_id
+       LEFT JOIN rounds r ON r.id = f.round_id
        WHERE f.id = $1 AND p.user_id = $2`,
       [req.params.id, req.userId]
     );
 
     if (ownership.rows.length === 0) {
       res.status(404).json({ error: 'Feedback not found' });
+      return;
+    }
+
+    // Prevent modifications to feedback in frozen rounds
+    if (ownership.rows[0].round_status === 'frozen') {
+      res.status(400).json({ error: 'Cannot modify feedback in a frozen round' });
       return;
     }
 
@@ -205,7 +263,7 @@ router.get('/tier', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const tier = result.rows[0].subscription_tier || 'pro';
+    const tier = result.rows[0].subscription_tier || 'starter';
     const config = getTierConfig(tier);
 
     res.json({
