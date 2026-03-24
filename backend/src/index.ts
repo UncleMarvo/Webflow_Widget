@@ -25,7 +25,7 @@ console.log('public/embed.js exists:', fs.existsSync(path.join(publicPath, 'embe
 app.use(express.static(publicPath));
 
 // Stripe webhook needs raw body for signature verification — must be before express.json()
-app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 // Middleware
 app.use(helmet({
