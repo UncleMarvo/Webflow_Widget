@@ -54,7 +54,7 @@ export function AboutPage() {
       <section className="bg-gradient-to-b from-[#F0F7FF] to-white py-16 sm:py-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary tracking-tight">
-            About Webflow Feedback Tool
+            About Phasemark
           </h1>
           <p className="mt-4 text-lg text-text-secondary max-w-2xl mx-auto">
             Professional feedback workflows that are affordable and accessible to everyone.
@@ -77,7 +77,7 @@ export function AboutPage() {
             <li>Feedback lived in a flat list forever &mdash; no way to organize by phase or revision.</li>
             <li>Pricing was broken &mdash; why should a solo freelancer with 1 project pay the same as a 50-person agency?</li>
           </ol>
-          <p>So I built <strong>Webflow Feedback Tool</strong>.</p>
+          <p>So I built <strong>Phasemark</strong>.</p>
         </div>
       </section>
 

@@ -35,7 +35,7 @@ export async function sendFeedbackNotification(projectId: string, feedback: Feed
     const { email, project_name } = result.rows[0];
 
     await resend.emails.send({
-      from: 'Webflow Feedback <notifications@feedback.app>',
+      from: 'Phasemark <notifications@feedback.app>',
       to: email,
       subject: `New feedback on ${project_name} - ${feedback.page_title || feedback.url}`,
       html: `

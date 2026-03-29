@@ -126,7 +126,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-gray-700 mt-8 pt-8 text-center">
           <p className="text-sm text-gray-500">
-            &copy; 2026 Webflow Feedback Tool. All rights reserved.
+            &copy; 2026 Phasemark. All rights reserved.
           </p>
           <p className="text-xs text-gray-600 mt-1">
             Made with ❤️

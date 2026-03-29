@@ -35,11 +35,9 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2" aria-label="Webflow Feedback home">
-            <svg className="w-7 h-7 text-primary" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" />
-            </svg>
-            <span className="font-bold text-text-primary text-lg hidden sm:inline">Webflow Feedback</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="Phasemark home">
+            <img src="/logo.png" alt="Phasemark logo" className="w-7 h-7" />
+            <span className="font-bold text-text-primary text-lg hidden sm:inline">Phasemark</span>
           </Link>
 
           {/* Center links - desktop */}

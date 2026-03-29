@@ -12,7 +12,7 @@ export function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-text-primary mb-3">1. Acceptance of Terms</h2>
             <p className="text-sm">
-              By accessing or using Webflow Feedback Tool ("the Service"), you agree to be bound by these Terms of Service and our{' '}
+              By accessing or using Phasemark ("the Service"), you agree to be bound by these Terms of Service and our{' '}
               <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
               If you do not agree with any part of these terms, you may not use the Service.
             </p>
@@ -149,7 +149,7 @@ export function TermsPage() {
             <p className="text-sm">
               These Terms of Service, together with our{' '}
               <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>,
-              constitute the entire agreement between you and Webflow Feedback Tool regarding your use of the Service.
+              constitute the entire agreement between you and Phasemark regarding your use of the Service.
             </p>
           </section>
 

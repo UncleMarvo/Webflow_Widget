@@ -63,7 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
         <p>Hi ${safeName},</p>
         <p>We've received your message and will get back to you within 24 hours.</p>
         <p>In the meantime, check out our <a href="https://webflowfeedback.com/how-to">How To guide</a> or <a href="https://webflowfeedback.com/faq">FAQ</a> — you might find the answer there.</p>
-        <p>Best,<br />The Webflow Feedback Team</p>
+        <p>Best,<br />The Phasemark Team</p>
       `,
     });
 

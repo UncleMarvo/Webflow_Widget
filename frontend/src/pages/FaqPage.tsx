@@ -13,7 +13,7 @@ const FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         id: 'what-is',
-        q: 'What is Webflow Feedback Tool?',
+        q: 'What is Phasemark?',
         a: 'A mobile-first feedback collection and management platform built specifically for Webflow sites. Organize feedback by rounds (phases), capture device context automatically, and collaborate with your team.',
       },
       {

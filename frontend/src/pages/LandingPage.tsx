@@ -58,7 +58,7 @@ const PRICING_TIERS = [
 
 const FAQ_ITEMS = [
   {
-    question: 'What is Webflow Feedback Tool?',
+    question: 'What is Phasemark?',
     answer:
       'A mobile-first feedback collection platform built specifically for Webflow sites. Organizes feedback by rounds (phases) and captures device context automatically.',
   },

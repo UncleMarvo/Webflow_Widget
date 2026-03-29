@@ -131,7 +131,7 @@ export async function sendTestWebhookEvent(
     event: 'test',
     timestamp: new Date().toISOString(),
     data: {
-      message: 'This is a test webhook event from the Webflow Feedback Tool API.',
+      message: 'This is a test webhook event from the Phasemark API.',
     },
   };
 
